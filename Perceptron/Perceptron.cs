@@ -16,6 +16,7 @@ namespace Perceptron
 
         public Perceptron(Func<double, double> activation, int numberOfInputs)
         {
+            this.activation = activation;
             Weights = new double[numberOfInputs];
         }
 

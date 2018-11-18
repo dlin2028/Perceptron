@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Perceptron
@@ -8,6 +9,9 @@ namespace Perceptron
     {
         public List<Layer> Layers;
         public double[] Output => Layers.Last().Output;
+
+        private List<Layer> oldLayers;
+
         /// <summary>
         /// Constructs a Feed Forward Neural Network object
         /// </summary>
@@ -17,7 +21,7 @@ namespace Perceptron
         public NeuralNet(Func<double, double> activation, int inputCount, params int[] layerNeurons)
         {
             Layers = new List<Layer>();
-            Layers[0] = new Layer(activation, inputCount, layerNeurons[0]);
+            Layers.Add(new Layer(activation, inputCount, layerNeurons[0]));
             for (int i = 1; i < layerNeurons.Length; i++)
             {
                 //the number of inputs of a layer is the number of outputs of the previous layer
@@ -33,21 +37,61 @@ namespace Perceptron
             }
             return Compute(Layers[layer].Compute(data), layer + 1);
         }
-
-        public void Train(double[][] inputs, double[][] desiredOutputs, int populationSize, int maxGeneration = -1)
+        
+        public double Fitness(double[][] inputs, double[][] desiredOutputs)
         {
-            while(NetFitness(inputs, desiredOutputs) != 0)
+            double fitness = 0;
+            for (int i = 0; i < inputs.Length; i++)
             {
+                var input = inputs[i];
+                var desiredOutput = desiredOutputs[i];
+                for (int j = 0; j < input.Length; j++)
+                {
+                    fitness += Math.Abs(Compute(input)[j] - desiredOutput[0]);
+                }
+            }
+            return fitness / inputs.Length;
+        }
 
+        /// <summary>
+        /// Randomizes the weights and biases of the neural network
+        /// </summary>
+        /// <param name="rand">a given random number generator in case seeds are wanted to control the randomization process</param>
+        public void Randomize(Random rand)
+        {
+            for (int i = 0; i < Layers.Count; i++)
+            {
+                Layers[i].Randomize(rand);
             }
         }
 
-        public double NetFitness(double[][] inputs, double[][] desiredOutputs)
+        /// <summary>
+        /// Mutates the weights and biases of the neural network to slightly alter it based on a given mutation rate
+        /// </summary>
+        /// <param name="random">a given random number generator in case seeds are wanted to control the randomization process</param>
+        /// <param name="rate">the given mutation rate. ranged 0-1, representing the % of the neural network that will be mutated</param>
+        public void Mutate(Random random, double rate)
         {
-            double fitness = 0;
-            foreach (var input in inputs)
+            oldLayers = new List<Layer>(Layers.ToArray());
+            foreach (Layer layer in Layers)
             {
-                fitness += Compute(input);
+                foreach (Perceptron perceptron in layer.Perceptrons)
+                {
+                    if (random.NextDouble() < rate)
+                    {
+                        //a percentage based change is ideal since it allows smaller numbers to have small changes
+                        perceptron.BiasWeight *= random.NextDouble(0.5, 1.5) * random.RandomSign();
+                    }
+
+                    for (int w = 0; w < perceptron.Weights.Length; w++)
+                    {
+                        if (random.NextDouble() < rate)
+                        {
+                            //a percentage based change is ideal since it allows smaller numbers to have small changes
+                            perceptron.Weights[w] *= random.NextDouble(0.5, 1.5) * random.RandomSign();
+                        }
+                    }
+                }
             }
         }
     }
